@@ -585,8 +585,11 @@ if (isTestEnvironment) {
     formatTime,
     log,
     ensureConfigFile,
+    saveConfig,
     openBrowser,
     generateHTML,
+    fetchRepositories,
+    findAvailablePort,
     CONFIG_DIR,
     CONFIG_FILE
   };
