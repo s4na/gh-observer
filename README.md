@@ -81,8 +81,12 @@ Jest を使用した自動テストを実装しています:
 GitHub Actions により、プッシュ・PR時に自動テストが実行されます。
 
 ## TODO
-- [ ] npx -y github:s4na/gh-observer　って入力したら、web uiが表示されてそこでrepoを選択 & 追加できるようにする
+- [ ] 設定ファイルの読み込みタイミングをちゃんとする
+- [x] npx -y github:s4na/gh-observer　って入力したら、web uiが表示されてそこでrepoを選択 & 追加できるようにする
 - [x] 設定ファイルは永続的に残る。 ~/.config/ に置く
 - [ ] npx -y github:s4na/gh-observer って実行したら、 gh issue を監視して、新しい issue ができたら log に表示できるようにする
 - [ ] 新規prについて /review で自動でレビューした上で、レビュー結果をprコメントとして投稿するようにする
 - [ ] 新規issueについて、pr作成までできるようにする
+
+
+
