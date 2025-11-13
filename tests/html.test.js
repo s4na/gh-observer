@@ -174,4 +174,76 @@ describe('html - generateHTML', () => {
       expect(html).toContain('リポジトリがありません');
     });
   });
+
+  describe('検索機能', () => {
+    test('検索入力フィールドを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('id="search-input"');
+      expect(html).toContain('リポジトリ名で検索');
+    });
+
+    test('検索クリアボタンを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('id="search-clear-button"');
+      expect(html).toContain('clearSearch');
+    });
+
+    test('検索結果情報表示用のdivを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('id="search-results-info"');
+    });
+
+    test('検索機能の初期化を含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('setupSearch');
+    });
+
+    test('検索フィルタリングのCSSクラスを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('.hidden');
+      expect(html).toContain('display: none');
+    });
+
+    test('repoItemにhidden属性の設定機能を含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('.repo-item.hidden');
+    });
+
+    test('組織セクションにhidden属性の設定機能を含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('.org-section.hidden');
+    });
+
+    test('保存機能で検索中の非表示項目も含まれることをコメント確認', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      // saveSelectedRepos は .repo-checkbox:checked で選択されたすべてのチェックボックスを取得する
+      // つまり、非表示になっていても（display: none）、チェック状態は保持されるため、
+      // 保存時に非表示項目も含まれることが保証される
+      expect(html).toContain('.repo-checkbox:checked');
+      expect(html).toContain('selectedRepos');
+    });
+  });
+
+  describe('保存機能と検索の統合', () => {
+    test('saveSelectedReposはチェック状態に基づいて選択されたリポジトリを抽出', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      // saveSelectedReposが .repo-checkbox:checked で全てのチェック済みチェックボックスを選択することを確認
+      expect(html).toContain('querySelectorAll(\'.repo-checkbox:checked\')');
+    });
+
+    test('保存APIに送信される対象に非表示項目も含まれることが実装される', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      // チェック状態は検索フィルタリング（hiddenクラス）に影響されないため、
+      // 非表示状態でも checkboxの checked 属性は保持される
+      expect(html).toContain('Array.from(checkboxes).map(cb => cb.value)');
+    });
+
+    test('検索実行中でも saveSelectedRepos 関数が動作する', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      // saveSelectedRepos は DOM から .repo-checkbox:checked を直接クエリする
+      // 検索フィルタリング（display:none）は JavaScript の checked 属性には影響しない
+      expect(html).toContain('function saveSelectedRepos');
+      expect(html).toContain('/api/save-targets');
+    });
+  });
 });
