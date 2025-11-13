@@ -246,4 +246,28 @@ describe('html - generateHTML', () => {
       expect(html).toContain('/api/save-targets');
     });
   });
+
+  describe('リポジトリ更新機能', () => {
+    test('リポジトリ更新ボタンを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('id="refresh-button"');
+      expect(html).toContain('refreshRepositories');
+      expect(html).toContain('リポジトリを更新');
+    });
+
+    test('リポジトリ更新APIエンドポイントを呼び出す', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('/api/repos/refresh');
+    });
+
+    test('リポジトリ更新ボタンはdisabled状態に対応', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('refreshButton.disabled');
+    });
+
+    test('更新中はボタンテキストが変更される', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('更新中...');
+    });
+  });
 });

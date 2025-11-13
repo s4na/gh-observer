@@ -140,6 +140,37 @@ function clearSearch() {
 // 検索機能の初期化
 setupSearch();
 
+// リポジトリ情報を更新する関数
+function refreshRepositories() {
+  const refreshButton = document.getElementById('refresh-button');
+  refreshButton.disabled = true;
+  refreshButton.textContent = '🔄 更新中...';
+
+  fetch('/api/repos/refresh', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        showMessage('リポジトリ情報を更新しました', true);
+        // リポジトリ情報を再読み込み
+        loadRepositories();
+      } else {
+        showMessage('更新に失敗しました: ' + (data.error || '不明なエラー'), false);
+      }
+    })
+    .catch(err => {
+      showMessage('更新に失敗しました: ' + err.message, false);
+    })
+    .finally(() => {
+      refreshButton.disabled = false;
+      refreshButton.textContent = '🔄 リポジトリを更新';
+    });
+}
+
 // 選択されたリポジトリを保存する関数
 function saveSelectedRepos() {
   const checkboxes = document.querySelectorAll('.repo-checkbox:checked');

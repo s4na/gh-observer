@@ -25,7 +25,7 @@ async function startServer(config, startTime) {
     const PORT = await findAvailablePort(3000);
 
     // HTTPサーバーを作成
-    const server = http.createServer((req, res) => {
+    const server = http.createServer(async (req, res) => {
       const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
       if (req.url === '/api/elapsed') {
@@ -39,6 +39,33 @@ async function startServer(config, startTime) {
           repoData,
           savedTargets: config.targets || []
         }));
+      } else if (req.url === '/api/repos/refresh' && req.method === 'POST') {
+        // API エンドポイント: リポジトリ情報を再取得（WebUIからのリフレッシュ要求）
+        try {
+          const updatedRepoData = await fetchRepositories();
+          // メモリ上のリポジトリデータを更新
+          repoData.userRepos = updatedRepoData.userRepos;
+          repoData.orgRepos = updatedRepoData.orgRepos;
+          if (updatedRepoData.error) {
+            repoData.error = updatedRepoData.error;
+          } else {
+            delete repoData.error;
+          }
+          log('INFO', 'リポジトリ情報を更新しました');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            repoData,
+            savedTargets: config.targets || []
+          }));
+        } catch (error) {
+          log('ERROR', `リポジトリ情報の更新に失敗: ${error.message}`);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: false,
+            error: error.message
+          }));
+        }
       } else if (req.url === '/api/save-targets' && req.method === 'POST') {
         // API エンドポイント: リポジトリ選択を保存
         let body = '';

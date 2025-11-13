@@ -249,6 +249,30 @@ function generateHTML(elapsed, repoData, savedTargets) {
       margin-bottom: 1rem;
       text-align: center;
     }
+    .refresh-button {
+      display: block;
+      margin: 0 auto 2rem;
+      padding: 0.8rem 1.5rem;
+      background: #764ba2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .refresh-button:hover {
+      background: #653b8f;
+      transform: translateY(-2px);
+    }
+    .refresh-button:active {
+      transform: translateY(0);
+    }
+    .refresh-button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
   </style>
 </head>
 <body>
@@ -266,6 +290,8 @@ function generateHTML(elapsed, repoData, savedTargets) {
     </div>
 
     <div class="search-results-info" id="search-results-info"></div>
+
+    <button class="refresh-button" id="refresh-button" onclick="refreshRepositories()">🔄 リポジトリを更新</button>
 
     <button class="save-button" onclick="saveSelectedRepos()">選択したリポジトリを保存</button>
 
@@ -411,6 +437,37 @@ function generateHTML(elapsed, repoData, savedTargets) {
       searchInput.value = '';
       searchInput.dispatchEvent(new Event('input'));
       searchInput.focus();
+    }
+
+    // リポジトリ情報を更新する関数
+    function refreshRepositories() {
+      const refreshButton = document.getElementById('refresh-button');
+      refreshButton.disabled = true;
+      refreshButton.textContent = '🔄 更新中...';
+
+      fetch('/api/repos/refresh', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showMessage('リポジトリ情報を更新しました', true);
+          // リポジトリ情報を再読み込み
+          loadRepositories();
+        } else {
+          showMessage('更新に失敗しました: ' + (data.error || '不明なエラー'), false);
+        }
+      })
+      .catch(err => {
+        showMessage('更新に失敗しました: ' + err.message, false);
+      })
+      .finally(() => {
+        refreshButton.disabled = false;
+        refreshButton.textContent = '🔄 リポジトリを更新';
+      });
     }
 
     // 選択されたリポジトリを保存する関数
