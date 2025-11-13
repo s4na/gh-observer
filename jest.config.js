@@ -8,5 +8,8 @@ module.exports = {
   coverageDirectory: 'coverage',
   testMatch: [
     '**/tests/**/*.test.js'
+  ],
+  transformIgnorePatterns: [
+    'node_modules/(?!(gensync)/)'
   ]
 };
