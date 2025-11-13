@@ -30,3 +30,10 @@ cd gh-observer
 # 実行
 node index.js
 ```
+
+## TODO
+- [ ] npx github:s4na/gh-observer -y　って入力したら、web uiが表示されてそこでrepoを選択 & 追加できるようにする
+- [ ] 設定ファイルは永続的に残る。 ~/config/ あたりにでも置いておく
+- [ ] npx github:s4na/gh-observer -y って実行したら、 gh issue を監視して、新しい issue ができたら log に表示できるようにする
+- [ ] 新規prについて /review で自動でレビューした上で、レビュー結果をprコメントとして投稿するようにする
+- [ ] 新規issueについて、pr作成までできるようにする
