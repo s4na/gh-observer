@@ -7,7 +7,8 @@
     "gh-observer": "./index.js"
   },
   "scripts": {
-    "test": "node index.js"
+    "test": "jest --coverage",
+    "test:watch": "jest --watch"
   },
   "keywords": [
     "cli",
@@ -17,5 +18,8 @@
   "license": "ISC",
   "dependencies": {
     "js-yaml": "^4.1.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
