@@ -5,6 +5,18 @@
 
 const { ensureConfigFile } = require('./src/config');
 const { startServer } = require('./src/server');
+const { log } = require('./src/logger');
+
+// コマンドライン引数を解析
+const args = process.argv.slice(2);
+const isDebugMode = args.includes('-d') || args.includes('--debug');
+
+// グローバルデバッグモードフラグを設定
+global.debugMode = isDebugMode;
+
+if (isDebugMode) {
+  log('INFO', '🐛 デバッグモードを有効化しました。ghコマンドの実行が記録されます。');
+}
 
 // アプリケーションのメインロジック
 async function main() {

@@ -18,7 +18,11 @@ async function fetchRepositories() {
     // 自分のリポジトリを取得
     let userRepos = [];
     try {
-      const { stdout: userReposOutput } = await execAsync('gh repo list --json name,url,description,owner --limit 100');
+      const cmd = 'gh repo list --json name,url,description,owner --limit 100';
+      if (global.debugMode) {
+        log('DEBUG', `📋 実行: ${cmd}`);
+      }
+      const { stdout: userReposOutput } = await execAsync(cmd);
       userRepos = JSON.parse(userReposOutput);
     } catch (err) {
       log('WARN', `個人リポジトリの取得に失敗: ${err.message}`);
@@ -27,7 +31,11 @@ async function fetchRepositories() {
     // 所属している組織を取得
     let orgs = [];
     try {
-      const { stdout: orgsOutput } = await execAsync('gh api user/orgs --jq ".[].login"');
+      const cmd = 'gh api user/orgs --jq ".[].login"';
+      if (global.debugMode) {
+        log('DEBUG', `📋 実行: ${cmd}`);
+      }
+      const { stdout: orgsOutput } = await execAsync(cmd);
       orgs = orgsOutput.trim().split('\n').filter(org => org);
     } catch (err) {
       log('WARN', `組織一覧の取得に失敗: ${err.message}`);
@@ -37,7 +45,11 @@ async function fetchRepositories() {
     const orgRepos = [];
     for (const org of orgs) {
       try {
-        const { stdout: orgReposOutput } = await execAsync(`gh repo list ${org} --json name,url,description,owner --limit 100`);
+        const cmd = `gh repo list ${org} --json name,url,description,owner --limit 100`;
+        if (global.debugMode) {
+          log('DEBUG', `📋 実行: ${cmd}`);
+        }
+        const { stdout: orgReposOutput } = await execAsync(cmd);
         const repos = JSON.parse(orgReposOutput);
         orgRepos.push({
           org,
