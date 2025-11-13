@@ -39,6 +39,7 @@ const ensureConfigFile = () => {
         interval: 1000,
         showElapsedTime: true,
         timeFormat: '24h',
+        targets: [],
         createdAt: new Date().toISOString()
       };
 
@@ -61,8 +62,30 @@ const ensureConfigFile = () => {
     return {
       interval: 1000,
       showElapsedTime: true,
-      timeFormat: '24h'
+      timeFormat: '24h',
+      targets: []
     };
+  }
+};
+
+// 設定を保存する関数
+const saveConfig = (config) => {
+  try {
+    if (!fs.existsSync(CONFIG_DIR)) {
+      fs.mkdirSync(CONFIG_DIR, { recursive: true });
+    }
+
+    const yamlContent = yaml.dump(config, {
+      indent: 2,
+      lineWidth: -1
+    });
+
+    fs.writeFileSync(CONFIG_FILE, yamlContent, 'utf8');
+    log('INFO', `Saved config to: ${CONFIG_FILE}`);
+    return true;
+  } catch (error) {
+    log('ERROR', `Error saving config file: ${error.message}`);
+    return false;
   }
 };
 
@@ -131,19 +154,28 @@ const fetchRepositories = async () => {
 };
 
 // HTMLコンテンツを生成する関数
-const generateHTML = (elapsed, repoData) => {
+const generateHTML = (elapsed, repoData, savedTargets) => {
   const renderRepoList = (repos) => {
     if (!repos || repos.length === 0) {
       return '<p class="no-repos">リポジトリがありません</p>';
     }
-    return repos.map(repo => `
+    return repos.map(repo => {
+      const repoFullName = `${repo.owner.login}/${repo.name}`;
+      const isChecked = savedTargets.includes(repoFullName) ? 'checked' : '';
+      return `
       <div class="repo-item">
-        <div class="repo-name">
-          <a href="${repo.url}" target="_blank">${repo.owner.login}/${repo.name}</a>
-        </div>
-        ${repo.description ? `<div class="repo-description">${repo.description}</div>` : ''}
+        <label class="repo-checkbox-label">
+          <input type="checkbox" class="repo-checkbox" value="${repoFullName}" ${isChecked}>
+          <div class="repo-info">
+            <div class="repo-name">
+              <a href="${repo.url}" target="_blank">${repoFullName}</a>
+            </div>
+            ${repo.description ? `<div class="repo-description">${repo.description}</div>` : ''}
+          </div>
+        </label>
       </div>
-    `).join('');
+    `;
+    }).join('');
   };
 
   const renderOrgRepos = (orgRepos) => {
@@ -229,6 +261,23 @@ const generateHTML = (elapsed, repoData) => {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
+    .repo-checkbox-label {
+      display: flex;
+      align-items: start;
+      cursor: pointer;
+      width: 100%;
+    }
+    .repo-checkbox {
+      margin-right: 0.8rem;
+      margin-top: 0.3rem;
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .repo-info {
+      flex: 1;
+    }
     .repo-name {
       font-size: 1.1rem;
       font-weight: 600;
@@ -245,6 +294,41 @@ const generateHTML = (elapsed, repoData) => {
       color: #666;
       font-size: 0.9rem;
       line-height: 1.4;
+    }
+    .save-button {
+      display: block;
+      margin: 2rem auto;
+      padding: 1rem 2rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .save-button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    .save-button:active {
+      transform: translateY(0);
+    }
+    .message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin: 1rem 0;
+      text-align: center;
+      font-weight: 500;
+    }
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+    }
+    .message.error {
+      background: #f8d7da;
+      color: #721c24;
     }
     .no-repos {
       color: #999;
@@ -277,6 +361,10 @@ const generateHTML = (elapsed, repoData) => {
 
     ${repoData && repoData.error ? `<div class="error-message">エラー: ${repoData.error}</div>` : ''}
 
+    <div id="message-container"></div>
+
+    <button class="save-button" onclick="saveSelectedRepos()">選択したリポジトリを保存</button>
+
     <div class="section">
       <h2 class="section-title">🔑 個人リポジトリ</h2>
       <div id="user-repos">
@@ -297,6 +385,45 @@ const generateHTML = (elapsed, repoData) => {
     </div>
   </div>
   <script>
+    // メッセージを表示する関数
+    function showMessage(message, isSuccess) {
+      const container = document.getElementById('message-container');
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message ' + (isSuccess ? 'success' : 'error');
+      messageDiv.textContent = message;
+      container.innerHTML = '';
+      container.appendChild(messageDiv);
+
+      setTimeout(() => {
+        messageDiv.remove();
+      }, 5000);
+    }
+
+    // 選択されたリポジトリを保存する関数
+    function saveSelectedRepos() {
+      const checkboxes = document.querySelectorAll('.repo-checkbox:checked');
+      const selectedRepos = Array.from(checkboxes).map(cb => cb.value);
+
+      fetch('/api/save-targets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ targets: selectedRepos })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          showMessage('選択したリポジトリを保存しました (' + selectedRepos.length + '件)', true);
+        } else {
+          showMessage('保存に失敗しました: ' + (data.error || '不明なエラー'), false);
+        }
+      })
+      .catch(err => {
+        showMessage('保存に失敗しました: ' + err.message, false);
+      });
+    }
+
     // 1秒ごとに経過時間を更新
     setInterval(() => {
       fetch('/api/elapsed')
@@ -366,10 +493,29 @@ async function startServer(config, startTime) {
         // API エンドポイント: 経過時間をJSON形式で返す
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ elapsed }));
+      } else if (req.url === '/api/save-targets' && req.method === 'POST') {
+        // API エンドポイント: リポジトリ選択を保存
+        let body = '';
+        req.on('data', chunk => {
+          body += chunk.toString();
+        });
+        req.on('end', () => {
+          try {
+            const data = JSON.parse(body);
+            config.targets = data.targets || [];
+            const success = saveConfig(config);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success }));
+          } catch (error) {
+            log('ERROR', `設定の保存に失敗: ${error.message}`);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: false, error: error.message }));
+          }
+        });
       } else {
         // メインページ: HTMLを返す
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(generateHTML(elapsed, repoData));
+        res.end(generateHTML(elapsed, repoData, config.targets || []));
       }
     });
 
