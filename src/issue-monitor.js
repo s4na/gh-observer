@@ -12,11 +12,28 @@ const execAsync = promisify(exec);
 let issueCache = {};
 
 /**
+ * リポジトリ名の形式を検証（owner/name 形式のみ許可）
+ * @param {string} repo - リポジトリ名
+ * @returns {boolean} 有効な形式なら true
+ */
+function isValidRepoFormat(repo) {
+  // owner/name 形式で、各部は英数字、ハイフン、アンダースコア、ドットのみ
+  const repoRegex = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
+  return repoRegex.test(repo);
+}
+
+/**
  * 指定のリポジトリから全Issueを取得
  * @param {string} repo - リポジトリ名 (owner/name 形式)
  * @returns {Promise<Array>} Issue配列
  */
 async function fetchIssues(repo) {
+  // リポジトリ名の形式検証
+  if (!isValidRepoFormat(repo)) {
+    log('ERROR', `無効なリポジトリ形式: ${repo}`);
+    return [];
+  }
+
   try {
     const { stdout } = await execAsync(
       `gh issue list --repo ${repo} --json number,title,state,createdAt,updatedAt,author --limit 100`
@@ -35,6 +52,12 @@ async function fetchIssues(repo) {
  * @returns {Promise<Array>} Comment配列
  */
 async function fetchIssueComments(repo, issueNumber) {
+  // リポジトリ名の形式検証
+  if (!isValidRepoFormat(repo)) {
+    log('ERROR', `無効なリポジトリ形式: ${repo}`);
+    return [];
+  }
+
   try {
     const { stdout } = await execAsync(
       `gh issue view ${issueNumber} --repo ${repo} --json comments --jq '.comments'`
@@ -140,5 +163,6 @@ module.exports = {
   monitorRepositories,
   resetCache,
   fetchIssues,
-  fetchIssueComments
+  fetchIssueComments,
+  isValidRepoFormat
 };
