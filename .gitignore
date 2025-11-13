@@ -1,0 +1,19 @@
+# 依存関係
+node_modules/
+
+# テストカバレッジ
+coverage/
+
+# ログファイル
+*.log
+npm-debug.log*
+
+# OS生成ファイル
+.DS_Store
+Thumbs.db
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo

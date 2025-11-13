@@ -63,10 +63,6 @@ const ensureConfigFile = () => {
   }
 };
 
-const config = ensureConfigFile();
-
-const startTime = Date.now();
-
 // ブラウザを開く関数
 const openBrowser = (url) => {
   const platform = process.platform;
@@ -167,38 +163,62 @@ const generateHTML = (elapsed) => {
   `;
 };
 
-// HTTPサーバーを作成
-const PORT = 3000;
-const server = http.createServer((req, res) => {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
+// サーバー起動関数
+function startServer(config, startTime) {
+  // HTTPサーバーを作成
+  const PORT = 3000;
+  const server = http.createServer((req, res) => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
-  if (req.url === '/api/elapsed') {
-    // API エンドポイント: 経過時間をJSON形式で返す
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ elapsed }));
-  } else {
-    // メインページ: HTMLを返す
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(generateHTML(elapsed));
-  }
-});
-
-server.listen(PORT, () => {
-  log('INFO', `Webサーバーを起動しました: http://localhost:${PORT}`);
-  // サーバー起動後にブラウザを開く
-  openBrowser(`http://localhost:${PORT}`);
-});
-
-// ターミナルにも経過時間を表示し続ける
-const timer = setInterval(() => {
-  const elapsed = Math.floor((Date.now() - startTime) / 1000);
-  log('INFO', `経過時間: ${elapsed}秒`);
-}, config.interval || 1000);
-
-process.on('SIGINT', () => {
-  clearInterval(timer);
-  server.close(() => {
-    log('INFO', '\nサーバーを停止しました');
-    process.exit(0);
+    if (req.url === '/api/elapsed') {
+      // API エンドポイント: 経過時間をJSON形式で返す
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ elapsed }));
+    } else {
+      // メインページ: HTMLを返す
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(generateHTML(elapsed));
+    }
   });
-});
+
+  server.listen(PORT, () => {
+    log('INFO', `Webサーバーを起動しました: http://localhost:${PORT}`);
+    // サーバー起動後にブラウザを開く
+    openBrowser(`http://localhost:${PORT}`);
+  });
+
+  // ターミナルにも経過時間を表示し続ける
+  const timer = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    log('INFO', `経過時間: ${elapsed}秒`);
+  }, config.interval || 1000);
+
+  process.on('SIGINT', () => {
+    clearInterval(timer);
+    server.close(() => {
+      log('INFO', '\nサーバーを停止しました');
+      process.exit(0);
+    });
+  });
+}
+
+// テストとして実行されているか確認
+const isTestEnvironment = process.env.NODE_ENV === 'test';
+
+// テスト用にエクスポート
+if (isTestEnvironment) {
+  module.exports = {
+    formatTime,
+    log,
+    ensureConfigFile,
+    openBrowser,
+    generateHTML,
+    CONFIG_DIR,
+    CONFIG_FILE
+  };
+} else {
+  // 通常実行時のみサーバーを起動
+  const config = ensureConfigFile();
+  const startTime = Date.now();
+  startServer(config, startTime);
+}
