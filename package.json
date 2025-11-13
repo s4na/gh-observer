@@ -19,7 +19,7 @@
   "author": "s4na",
   "license": "ISC",
   "engines": {
-    "node": ">=20.0.0"
+    "node": "24.x"
   },
   "dependencies": {
     "js-yaml": "^4.1.1"
