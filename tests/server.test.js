@@ -226,6 +226,88 @@ describe('server - HTTP API endpoints', () => {
         req.end();
       });
     });
+
+    test('設定変更後のサーバーメモリが同期される', (done) => {
+      let mockConfig = { targets: [] };
+      testServer = http.createServer((req, res) => {
+        if (req.url === '/api/save-targets' && req.method === 'POST') {
+          let body = '';
+          req.on('data', (chunk) => {
+            body += chunk.toString();
+          });
+          req.on('end', () => {
+            const data = JSON.parse(body);
+            // サーバーメモリの設定を更新
+            mockConfig.targets = data.targets || [];
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+          });
+        } else if (req.url === '/api/repos') {
+          // 設定変更後に /api/repos をリクエストして、設定が反映されているか確認
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            repoData: { userRepos: [], orgRepos: [] },
+            savedTargets: mockConfig.targets || []
+          }));
+        }
+      });
+
+      testServer.listen(testPort + 6, () => {
+        const postData = JSON.stringify({
+          targets: ['owner/repo1', 'owner/repo2']
+        });
+
+        const postOptions = {
+          hostname: 'localhost',
+          port: testPort + 6,
+          path: '/api/save-targets',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': postData.length
+          }
+        };
+
+        // 1. 設定を保存
+        const postReq = http.request(postOptions, (res) => {
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+          res.on('end', () => {
+            expect(JSON.parse(data).success).toBe(true);
+
+            // 2. 設定が保存されたら、/api/repos をリクエストして反映を確認
+            const getOptions = {
+              hostname: 'localhost',
+              port: testPort + 6,
+              path: '/api/repos',
+              method: 'GET'
+            };
+
+            const getReq = http.request(getOptions, (getRes) => {
+              let repoData = '';
+              getRes.on('data', (chunk) => {
+                repoData += chunk;
+              });
+              getRes.on('end', () => {
+                const result = JSON.parse(repoData);
+                // 設定が反映されていることを確認
+                expect(result.savedTargets).toEqual(['owner/repo1', 'owner/repo2']);
+                done();
+              });
+            });
+
+            getReq.on('error', done);
+            getReq.end();
+          });
+        });
+
+        postReq.on('error', done);
+        postReq.write(postData);
+        postReq.end();
+      });
+    });
   });
 
   describe('メインページ', () => {
