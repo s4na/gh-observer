@@ -1,0 +1,15 @@
+{
+  "name": "gh-observer",
+  "version": "1.0.0",
+  "description": "A CLI tool that displays elapsed time every second",
+  "main": "index.js",
+  "bin": {
+    "gh-observer": "./index.js"
+  },
+  "scripts": {
+    "test": "node index.js"
+  },
+  "keywords": ["cli", "timer"],
+  "author": "s4na",
+  "license": "ISC"
+}
