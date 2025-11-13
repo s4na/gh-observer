@@ -9,7 +9,13 @@
   "scripts": {
     "test": "node index.js"
   },
-  "keywords": ["cli", "timer"],
+  "keywords": [
+    "cli",
+    "timer"
+  ],
   "author": "s4na",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "js-yaml": "^4.1.1"
+  }
 }
