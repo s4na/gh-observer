@@ -85,12 +85,6 @@ async function startServer(config, startTime) {
       openBrowser(`http://localhost:${PORT}`);
     });
 
-    // ターミナルにも経過時間を表示し続ける
-    const timer = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTime) / 1000);
-      log('INFO', `経過時間: ${elapsed}秒`);
-    }, config.interval || 1000);
-
     // Issue監視タイマー（1分に1回、設定されたリポジトリをチェック）
     const issueMonitorInterval = 60000; // 1分
     const issueTimer = setInterval(async () => {
@@ -112,7 +106,6 @@ async function startServer(config, startTime) {
       isShuttingDown = true;
 
       log('INFO', '\n停止処理を開始しています...');
-      clearInterval(timer);
       clearInterval(issueTimer);
 
       server.close(() => {
