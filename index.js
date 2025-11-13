@@ -534,6 +534,7 @@ async function startServer(config, startTime) {
       if (PORT !== 3000) {
         log('WARN', `ポート3000が使用中のため、ポート${PORT}を使用しています`);
       }
+      log('INFO', '停止するには Ctrl+C を押してください');
       // サーバー起動後にブラウザを開く
       openBrowser(`http://localhost:${PORT}`);
     });
@@ -544,13 +545,31 @@ async function startServer(config, startTime) {
       log('INFO', `経過時間: ${elapsed}秒`);
     }, config.interval || 1000);
 
-    process.on('SIGINT', () => {
+    // Ctrl+C (SIGINT) でのグレースフルシャットダウン
+    let isShuttingDown = false;
+    const handleShutdown = () => {
+      if (isShuttingDown) {
+        return;
+      }
+      isShuttingDown = true;
+
+      log('INFO', '\n停止処理を開始しています...');
       clearInterval(timer);
+
       server.close(() => {
-        log('INFO', '\nサーバーを停止しました');
+        log('INFO', 'サーバーを停止しました');
         process.exit(0);
       });
-    });
+
+      // サーバーが5秒以内に停止しない場合は強制終了
+      setTimeout(() => {
+        log('WARN', 'サーバーの停止がタイムアウトしました。強制終了します。');
+        process.exit(1);
+      }, 5000);
+    };
+
+    process.on('SIGINT', handleShutdown);
+    process.on('SIGTERM', handleShutdown);
   } catch (error) {
     log('ERROR', `サーバーの起動に失敗しました: ${error.message}`);
     process.exit(1);
