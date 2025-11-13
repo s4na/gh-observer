@@ -31,6 +31,13 @@ async function startServer(config, startTime) {
         // API エンドポイント: 経過時間をJSON形式で返す
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ elapsed }));
+      } else if (req.url === '/api/repos') {
+        // API エンドポイント: 現在の設定を反映したリポジトリ情報を返す
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          repoData,
+          savedTargets: config.targets || []
+        }));
       } else if (req.url === '/api/save-targets' && req.method === 'POST') {
         // API エンドポイント: リポジトリ選択を保存
         let body = '';

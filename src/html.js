@@ -253,6 +253,56 @@ function generateHTML(elapsed, repoData, savedTargets) {
       }, 5000);
     }
 
+    // リポジトリリストをHTMLで生成
+    function renderRepoList(repos, savedTargets) {
+      if (!repos || repos.length === 0) {
+        return '<p class="no-repos">リポジトリがありません</p>';
+      }
+      return repos.map(repo => {
+        const repoFullName = repo.owner.login + '/' + repo.name;
+        const isChecked = savedTargets.includes(repoFullName) ? 'checked' : '';
+        return '<div class="repo-item"><label class="repo-checkbox-label"><input type="checkbox" class="repo-checkbox" value="' + repoFullName + '" ' + isChecked + '><div class="repo-info"><div class="repo-name"><a href="' + repo.url + '" target="_blank">' + repoFullName + '</a></div>' + (repo.description ? '<div class="repo-description">' + repo.description + '</div>' : '') + '</div></label></div>';
+      }).join('');
+    }
+
+    // 組織のリポジトリをHTMLで生成
+    function renderOrgRepos(orgRepos, savedTargets) {
+      if (!orgRepos || orgRepos.length === 0) {
+        return '<p class="no-repos">所属している組織がありません</p>';
+      }
+      return orgRepos.map(function(item) {
+        var org = item.org;
+        var repos = item.repos;
+        return '<div class="org-section"><h3 class="org-name">' + org + '</h3>' + renderRepoList(repos, savedTargets) + '</div>';
+      }).join('');
+    }
+
+    // ページロード時にリポジトリ情報を取得・更新
+    function loadRepositories() {
+      fetch('/api/repos')
+        .then(res => res.json())
+        .then(data => {
+          const repoData = data.repoData;
+          const savedTargets = data.savedTargets || [];
+
+          // 個人リポジトリを更新
+          const userReposDiv = document.getElementById('user-repos');
+          if (repoData && repoData.userRepos) {
+            userReposDiv.innerHTML = renderRepoList(repoData.userRepos, savedTargets);
+          }
+
+          // 組織のリポジトリを更新
+          const orgReposDiv = document.getElementById('org-repos');
+          if (repoData && repoData.orgRepos) {
+            orgReposDiv.innerHTML = renderOrgRepos(repoData.orgRepos, savedTargets);
+          }
+        })
+        .catch(err => console.error('リポジトリの読み込みエラー:', err));
+    }
+
+    // ページロード時にリポジトリ情報を取得
+    loadRepositories();
+
     // 選択されたリポジトリを保存する関数
     function saveSelectedRepos() {
       const checkboxes = document.querySelectorAll('.repo-checkbox:checked');
@@ -269,6 +319,8 @@ function generateHTML(elapsed, repoData, savedTargets) {
       .then(data => {
         if (data.success) {
           showMessage('選択したリポジトリを保存しました (' + selectedRepos.length + '件)', true);
+          // 保存後、リポジトリ情報を再読み込み
+          loadRepositories();
         } else {
           showMessage('保存に失敗しました: ' + (data.error || '不明なエラー'), false);
         }

@@ -15,6 +15,56 @@ describe('server - HTTP API endpoints', () => {
     }
   });
 
+  describe('/api/repos エンドポイント', () => {
+    test('リポジトリと保存済み設定をJSON形式で返す', (done) => {
+      const mockRepoData = {
+        userRepos: [
+          { name: 'repo1', owner: { login: 'user' }, url: 'https://...' }
+        ],
+        orgRepos: []
+      };
+      const mockConfig = { targets: ['user/repo1'] };
+
+      testServer = http.createServer((req, res) => {
+        if (req.url === '/api/repos') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            repoData: mockRepoData,
+            savedTargets: mockConfig.targets || []
+          }));
+        }
+      });
+
+      testServer.listen(testPort + 5, () => {
+        const options = {
+          hostname: 'localhost',
+          port: testPort + 5,
+          path: '/api/repos',
+          method: 'GET'
+        };
+
+        const req = http.request(options, (res) => {
+          let data = '';
+          res.on('data', (chunk) => {
+            data += chunk;
+          });
+
+          res.on('end', () => {
+            expect(res.statusCode).toBe(200);
+            const result = JSON.parse(data);
+            expect(result).toHaveProperty('repoData');
+            expect(result).toHaveProperty('savedTargets');
+            expect(Array.isArray(result.savedTargets)).toBe(true);
+            done();
+          });
+        });
+
+        req.on('error', done);
+        req.end();
+      });
+    });
+  });
+
   describe('/api/elapsed エンドポイント', () => {
     test('経過時間をJSON形式で返す', (done) => {
       const startTime = Date.now();

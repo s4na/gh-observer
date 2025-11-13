@@ -75,6 +75,17 @@ describe('html - generateHTML', () => {
       expect(html).toContain('saveSelectedRepos');
       expect(html).toContain('/api/save-targets');
     });
+
+    test('リポジトリ読み込みAPI呼び出しを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('/api/repos');
+      expect(html).toContain('loadRepositories');
+    });
+
+    test('ページロード時のリポジトリ読み込みを含む', () => {
+      const html = generateHTML(0, { userRepos: [], orgRepos: [] }, []);
+      expect(html).toContain('loadRepositories()');
+    });
   });
 
   describe('リポジトリ表示', () => {
