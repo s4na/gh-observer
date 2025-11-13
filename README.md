@@ -7,8 +7,10 @@
 以下のコマンドで実行できます:
 
 ```bash
-npx github:s4na/gh-observer
+npx github:s4na/gh-observer -y
 ```
+
+※ `-y` フラグを付けることで、毎回の同意確認をスキップできます。
 
 実行すると、1秒ごとに経過時間が表示されます。
 
