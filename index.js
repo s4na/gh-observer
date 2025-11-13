@@ -6,6 +6,9 @@ const yaml = require('js-yaml');
 const os = require('os');
 const http = require('http');
 const { exec } = require('child_process');
+const { promisify } = require('util');
+
+const execAsync = promisify(exec);
 
 const CONFIG_DIR = path.join(os.homedir(), '.config');
 const CONFIG_FILE = path.join(CONFIG_DIR, 's4na-gh-observer.yaml');
@@ -83,8 +86,78 @@ const openBrowser = (url) => {
   });
 };
 
+// ghコマンドを使ってリポジトリ一覧を取得する関数
+const fetchRepositories = async () => {
+  try {
+    log('INFO', 'リポジトリ情報を取得中...');
+
+    // 自分のリポジトリを取得
+    const { stdout: userRepos } = await execAsync('gh repo list --json name,url,description,owner --limit 100');
+    const userReposList = JSON.parse(userRepos);
+
+    // 所属している組織を取得
+    const { stdout: orgsOutput } = await execAsync('gh api user/orgs --jq ".[].login"');
+    const orgs = orgsOutput.trim().split('\n').filter(org => org);
+
+    // 各組織のリポジトリを取得
+    const orgRepos = [];
+    for (const org of orgs) {
+      try {
+        const { stdout: orgReposOutput } = await execAsync(`gh repo list ${org} --json name,url,description,owner --limit 100`);
+        const orgReposList = JSON.parse(orgReposOutput);
+        orgRepos.push({
+          org,
+          repos: orgReposList
+        });
+      } catch (err) {
+        log('WARN', `組織 ${org} のリポジトリ取得に失敗: ${err.message}`);
+      }
+    }
+
+    log('INFO', `取得完了: 個人リポジトリ ${userReposList.length}件, 組織 ${orgs.length}件`);
+
+    return {
+      userRepos: userReposList,
+      orgRepos
+    };
+  } catch (error) {
+    log('ERROR', `リポジトリ情報の取得に失敗: ${error.message}`);
+    return {
+      userRepos: [],
+      orgRepos: [],
+      error: error.message
+    };
+  }
+};
+
 // HTMLコンテンツを生成する関数
-const generateHTML = (elapsed) => {
+const generateHTML = (elapsed, repoData) => {
+  const renderRepoList = (repos) => {
+    if (!repos || repos.length === 0) {
+      return '<p class="no-repos">リポジトリがありません</p>';
+    }
+    return repos.map(repo => `
+      <div class="repo-item">
+        <div class="repo-name">
+          <a href="${repo.url}" target="_blank">${repo.owner.login}/${repo.name}</a>
+        </div>
+        ${repo.description ? `<div class="repo-description">${repo.description}</div>` : ''}
+      </div>
+    `).join('');
+  };
+
+  const renderOrgRepos = (orgRepos) => {
+    if (!orgRepos || orgRepos.length === 0) {
+      return '<p class="no-repos">所属している組織がありません</p>';
+    }
+    return orgRepos.map(({ org, repos }) => `
+      <div class="org-section">
+        <h3 class="org-name">${org}</h3>
+        ${renderRepoList(repos)}
+      </div>
+    `).join('');
+  };
+
   return `
 <!DOCTYPE html>
 <html lang="ja">
@@ -93,38 +166,97 @@ const generateHTML = (elapsed) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GitHub Observer</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
       margin: 0;
+      padding: 2rem;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
     }
     .container {
+      max-width: 1200px;
+      margin: 0 auto;
       background: white;
-      padding: 3rem;
+      padding: 2rem;
       border-radius: 20px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-      text-align: center;
-      min-width: 400px;
     }
     h1 {
       color: #333;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       font-size: 2.5rem;
+      text-align: center;
     }
     .elapsed-time {
-      font-size: 4rem;
+      font-size: 1.5rem;
       font-weight: bold;
       color: #667eea;
-      margin: 2rem 0;
+      text-align: center;
+      margin-bottom: 2rem;
       font-variant-numeric: tabular-nums;
     }
-    .label {
+    .section {
+      margin-bottom: 2rem;
+    }
+    .section-title {
+      color: #333;
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #667eea;
+    }
+    .org-section {
+      margin-bottom: 2rem;
+    }
+    .org-name {
+      color: #555;
+      font-size: 1.4rem;
+      margin-bottom: 0.8rem;
+      padding-left: 1rem;
+      border-left: 4px solid #764ba2;
+    }
+    .repo-item {
+      padding: 1rem;
+      margin-bottom: 0.8rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .repo-item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    .repo-name {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+    }
+    .repo-name a {
+      color: #667eea;
+      text-decoration: none;
+    }
+    .repo-name a:hover {
+      text-decoration: underline;
+    }
+    .repo-description {
       color: #666;
-      font-size: 1.2rem;
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+    .no-repos {
+      color: #999;
+      font-style: italic;
+      padding: 1rem;
+      text-align: center;
+    }
+    .error-message {
+      background: #fee;
+      color: #c33;
+      padding: 1rem;
+      border-radius: 8px;
       margin-bottom: 1rem;
     }
     .info {
@@ -134,26 +266,43 @@ const generateHTML = (elapsed) => {
       border-radius: 10px;
       font-size: 0.9rem;
       color: #666;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>📊 GitHub Observer</h1>
-    <div class="label">経過時間</div>
-    <div class="elapsed-time" id="elapsed">${elapsed}秒</div>
+    <div class="elapsed-time" id="elapsed">経過時間: ${elapsed}秒</div>
+
+    ${repoData && repoData.error ? `<div class="error-message">エラー: ${repoData.error}</div>` : ''}
+
+    <div class="section">
+      <h2 class="section-title">🔑 個人リポジトリ</h2>
+      <div id="user-repos">
+        ${repoData ? renderRepoList(repoData.userRepos) : '<p class="no-repos">読み込み中...</p>'}
+      </div>
+    </div>
+
+    <div class="section">
+      <h2 class="section-title">🏢 組織のリポジトリ</h2>
+      <div id="org-repos">
+        ${repoData ? renderOrgRepos(repoData.orgRepos) : '<p class="no-repos">読み込み中...</p>'}
+      </div>
+    </div>
+
     <div class="info">
       このページは自動的に更新されます<br>
       停止するには、ターミナルで Ctrl+C を押してください
     </div>
   </div>
   <script>
-    // 1秒ごとにページを更新
+    // 1秒ごとに経過時間を更新
     setInterval(() => {
       fetch('/api/elapsed')
         .then(res => res.json())
         .then(data => {
-          document.getElementById('elapsed').textContent = data.elapsed + '秒';
+          document.getElementById('elapsed').textContent = '経過時間: ' + data.elapsed + '秒';
         })
         .catch(err => console.error('更新エラー:', err));
     }, 1000);
@@ -203,6 +352,9 @@ function findAvailablePort(startPort, maxAttempts = 10) {
 // サーバー起動関数
 async function startServer(config, startTime) {
   try {
+    // リポジトリデータを取得
+    const repoData = await fetchRepositories();
+
     // 利用可能なポートを見つける
     const PORT = await findAvailablePort(3000);
 
@@ -217,7 +369,7 @@ async function startServer(config, startTime) {
       } else {
         // メインページ: HTMLを返す
         res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(generateHTML(elapsed));
+        res.end(generateHTML(elapsed, repoData));
       }
     });
 
