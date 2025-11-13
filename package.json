@@ -1,7 +1,7 @@
 {
   "name": "gh-observer",
-  "version": "1.0.0",
-  "description": "A CLI tool that displays elapsed time every second",
+  "version": "2.0.0",
+  "description": "GitHub repository observer - A CLI tool that displays elapsed time and manages repository selections",
   "main": "index.js",
   "bin": {
     "gh-observer": "./index.js"
@@ -12,10 +12,15 @@
   },
   "keywords": [
     "cli",
-    "timer"
+    "github",
+    "repository",
+    "observer"
   ],
   "author": "s4na",
   "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "js-yaml": "^4.1.1"
   },
