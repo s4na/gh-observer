@@ -8,6 +8,7 @@ const { generateHTML } = require('./html');
 const { fetchRepositories } = require('./repository');
 const { saveConfig } = require('./config');
 const { findAvailablePort } = require('./port');
+const { monitorRepositories } = require('./issue-monitor');
 
 /**
  * HTTPサーバーを起動
@@ -90,6 +91,14 @@ async function startServer(config, startTime) {
       log('INFO', `経過時間: ${elapsed}秒`);
     }, config.interval || 1000);
 
+    // Issue監視タイマー（1分に1回、設定されたリポジトリをチェック）
+    const issueMonitorInterval = 60000; // 1分
+    const issueTimer = setInterval(async () => {
+      if (config.targets && config.targets.length > 0) {
+        await monitorRepositories(config.targets);
+      }
+    }, issueMonitorInterval);
+
     // Ctrl+C (SIGINT) でのグレースフルシャットダウン
     let isShuttingDown = false;
     const handleShutdown = () => {
@@ -100,6 +109,7 @@ async function startServer(config, startTime) {
 
       log('INFO', '\n停止処理を開始しています...');
       clearInterval(timer);
+      clearInterval(issueTimer);
 
       server.close(() => {
         log('INFO', 'サーバーを停止しました');
