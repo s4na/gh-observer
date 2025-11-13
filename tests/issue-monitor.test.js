@@ -1,6 +1,6 @@
 // Issue監視モジュールのテスト
 
-const { monitorRepositories, resetCache, fetchIssues } = require('../src/issue-monitor');
+const { monitorRepositories, resetCache, fetchIssues, isValidRepoFormat } = require('../src/issue-monitor');
 const { log } = require('../src/logger');
 
 // mockする
@@ -13,35 +13,130 @@ describe('Issue Monitor', () => {
     resetCache();
   });
 
-  test('monitorRepositories should handle empty repos list', async () => {
-    await monitorRepositories([]);
-    expect(log).not.toHaveBeenCalled();
-  });
-
-  test('monitorRepositories should handle null repos', async () => {
-    await monitorRepositories(null);
-    expect(log).not.toHaveBeenCalled();
-  });
-
-  test('resetCache should clear cache', () => {
-    resetCache();
-    // キャッシュがリセットされたことを確認
-    expect(true).toBe(true);
-  });
-
-  test('monitorRepositories should handle repositories', async () => {
-    // モック実装はリポジトリが存在する場合の処理をテスト
-    const { exec } = require('child_process');
-    exec.mockImplementation((cmd, callback) => {
-      callback(null, { stdout: '[]' });
+  describe('isValidRepoFormat', () => {
+    test('should accept valid repo format (owner/name)', () => {
+      expect(isValidRepoFormat('owner/repo')).toBe(true);
+      expect(isValidRepoFormat('my-org/my-repo')).toBe(true);
+      expect(isValidRepoFormat('user_name/repo_name')).toBe(true);
+      expect(isValidRepoFormat('user.name/repo.name')).toBe(true);
     });
 
-    // 初回実行（キャッシュ作成）
-    await monitorRepositories(['test/repo']);
+    test('should reject invalid repo format', () => {
+      expect(isValidRepoFormat('owner')).toBe(false);
+      expect(isValidRepoFormat('owner/repo/extra')).toBe(false);
+      expect(isValidRepoFormat('owner/repo;rm -rf /')).toBe(false);
+      expect(isValidRepoFormat('owner/../repo')).toBe(false);
+      expect(isValidRepoFormat('')).toBe(false);
+    });
+  });
 
-    // 2回目実行（差分検出）
-    await monitorRepositories(['test/repo']);
+  describe('monitorRepositories', () => {
+    test('should handle empty repos list', async () => {
+      await monitorRepositories([]);
+      expect(log).not.toHaveBeenCalled();
+    });
 
-    expect(true).toBe(true);
-  }, 10000);
+    test('should handle null repos', async () => {
+      await monitorRepositories(null);
+      expect(log).not.toHaveBeenCalled();
+    });
+
+    test('should detect new issues', async () => {
+      const { exec } = require('child_process');
+
+      // 1回目: Issue#1のみ
+      exec.mockImplementationOnce((cmd, callback) => {
+        callback(null, {
+          stdout: JSON.stringify([
+            {
+              number: 1,
+              title: 'Test Issue',
+              state: 'OPEN',
+              author: { login: 'user1' },
+              createdAt: '2025-01-01T00:00:00Z',
+              updatedAt: '2025-01-01T00:00:00Z'
+            }
+          ])
+        });
+      });
+
+      // 2回目: Issue#1, #2（#2が新規）
+      exec.mockImplementationOnce((cmd, callback) => {
+        callback(null, {
+          stdout: JSON.stringify([
+            {
+              number: 1,
+              title: 'Test Issue',
+              state: 'OPEN',
+              author: { login: 'user1' },
+              createdAt: '2025-01-01T00:00:00Z',
+              updatedAt: '2025-01-01T00:00:00Z'
+            },
+            {
+              number: 2,
+              title: 'New Issue',
+              state: 'OPEN',
+              author: { login: 'user2' },
+              createdAt: '2025-01-02T00:00:00Z',
+              updatedAt: '2025-01-02T00:00:00Z'
+            }
+          ])
+        });
+      });
+
+      // 初回実行（キャッシュ作成）
+      await monitorRepositories(['owner/repo']);
+
+      // ログが出力されないことを確認（初回はキャッシュするだけ）
+      expect(log).not.toHaveBeenCalled();
+
+      // 2回目実行（新規Issue検出）
+      await monitorRepositories(['owner/repo']);
+
+      // 新規Issue検出ログを確認
+      expect(log).toHaveBeenCalledWith(
+        'INFO',
+        expect.stringContaining('🆕 新しいIssue')
+      );
+      expect(log).toHaveBeenCalledWith(
+        'INFO',
+        expect.stringContaining('owner/repo#2')
+      );
+    });
+
+    test('should reject invalid repo format and log error', async () => {
+      await monitorRepositories(['invalid-repo-format']);
+
+      // 無効なリポジトリ形式でエラーログが出力されることを確認
+      expect(log).toHaveBeenCalledWith(
+        'ERROR',
+        expect.stringContaining('無効なリポジトリ形式')
+      );
+    });
+
+    test('should handle command execution errors gracefully', async () => {
+      const { exec } = require('child_process');
+
+      exec.mockImplementation((cmd, callback) => {
+        callback(new Error('gh command not found'));
+      });
+
+      // エラーでもクラッシュしないことを確認
+      await monitorRepositories(['owner/repo']);
+
+      // WARNログが出力されることを確認
+      expect(log).toHaveBeenCalledWith(
+        'WARN',
+        expect.stringContaining('Issue取得失敗')
+      );
+    });
+  });
+
+  describe('resetCache', () => {
+    test('should clear cache', () => {
+      resetCache();
+      // キャッシュがリセットされたことを確認
+      expect(true).toBe(true);
+    });
+  });
 });

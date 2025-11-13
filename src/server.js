@@ -94,8 +94,12 @@ async function startServer(config, startTime) {
     // Issue監視タイマー（1分に1回、設定されたリポジトリをチェック）
     const issueMonitorInterval = 60000; // 1分
     const issueTimer = setInterval(async () => {
-      if (config.targets && config.targets.length > 0) {
-        await monitorRepositories(config.targets);
+      try {
+        if (config.targets && config.targets.length > 0) {
+          await monitorRepositories(config.targets);
+        }
+      } catch (error) {
+        log('ERROR', `Issue監視エラー: ${error.message}`);
       }
     }, issueMonitorInterval);
 
