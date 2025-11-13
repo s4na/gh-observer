@@ -7,10 +7,10 @@
 以下のコマンドで実行できます:
 
 ```bash
-npx github:s4na/gh-observer -y
+npx -y github:s4na/gh-observer
 ```
 
-※ `-y` フラグを付けることで、毎回の同意確認をスキップできます。
+※ `-y` フラグを付けることで、パッケージインストールの同意確認をスキップできます。
 
 実行すると、1秒ごとに経過時間が表示されます。
 
@@ -32,8 +32,8 @@ node index.js
 ```
 
 ## TODO
-- [ ] npx github:s4na/gh-observer -y　って入力したら、web uiが表示されてそこでrepoを選択 & 追加できるようにする
-- [ ] 設定ファイルは永続的に残る。 ~/config/ あたりにでも置いておく
-- [ ] npx github:s4na/gh-observer -y って実行したら、 gh issue を監視して、新しい issue ができたら log に表示できるようにする
+- [ ] npx -y github:s4na/gh-observer　って入力したら、web uiが表示されてそこでrepoを選択 & 追加できるようにする
+- [x] 設定ファイルは永続的に残る。 ~/.config/ に置く
+- [ ] npx -y github:s4na/gh-observer って実行したら、 gh issue を監視して、新しい issue ができたら log に表示できるようにする
 - [ ] 新規prについて /review で自動でレビューした上で、レビュー結果をprコメントとして投稿するようにする
 - [ ] 新規issueについて、pr作成までできるようにする
