@@ -60,9 +60,10 @@ async function fetchIssueComments(repo, issueNumber) {
 
   try {
     const { stdout } = await execAsync(
-      `gh issue view ${issueNumber} --repo ${repo} --json comments --jq '.comments'`
+      `gh issue view ${issueNumber} --repo ${repo} --json comments`
     );
-    return JSON.parse(stdout);
+    const result = JSON.parse(stdout);
+    return result.comments || [];
   } catch (err) {
     log('WARN', `Comment取得失敗 (${repo}#${issueNumber}): ${err.message}`);
     return [];
@@ -78,10 +79,19 @@ async function monitorRepository(repo) {
     const currentIssues = await fetchIssues(repo);
 
     if (!issueCache[repo]) {
+      // 初回実行時：全issueのコメントキャッシュを初期化
       issueCache[repo] = {
         issues: currentIssues,
         comments: {}
       };
+
+      // 初回実行時に全issueのコメントをキャッシュに登録
+      for (const issue of currentIssues) {
+        const comments = await fetchIssueComments(repo, issue.number);
+        issueCache[repo].comments[issue.number] = comments;
+      }
+
+      log('INFO', `監視開始: ${repo} (Issue: ${currentIssues.length}件)`);
       return; // 初回はキャッシュするだけ
     }
 
@@ -94,6 +104,9 @@ async function monitorRepository(repo) {
 
     for (const issue of newIssues) {
       log('INFO', `🆕 新しいIssue: ${repo}#${issue.number} "${issue.title}" (by @${issue.author.login})`);
+      // 新規issueのコメントもキャッシュに追加
+      const comments = await fetchIssueComments(repo, issue.number);
+      issueCache[repo].comments[issue.number] = comments;
     }
 
     // 更新されたissueを検出（updatedAtが変わった）
@@ -120,9 +133,6 @@ async function monitorRepository(repo) {
         }
 
         // コメントキャッシュを更新
-        if (!issueCache[repo].comments) {
-          issueCache[repo].comments = {};
-        }
         issueCache[repo].comments[issue.number] = currentComments;
       } else {
         // コメントが新しくない場合は、状態変更のみをログ
