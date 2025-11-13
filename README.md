@@ -15,7 +15,7 @@
 以下のコマンドで実行できます:
 
 ```bash
-npx -y github:s4na/gh-observer
+npx -y github:s4na/gh-observer -d
 ```
 
 ※ `-y` フラグを付けることで、パッケージインストールの同意確認をスキップできます。
