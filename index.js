@@ -163,43 +163,100 @@ const generateHTML = (elapsed) => {
   `;
 };
 
+// 利用可能なポートを見つける関数
+function findAvailablePort(startPort, maxAttempts = 10) {
+  return new Promise((resolve, reject) => {
+    let currentPort = startPort;
+    let attempts = 0;
+
+    const tryPort = () => {
+      if (attempts >= maxAttempts) {
+        reject(new Error(`利用可能なポートが見つかりませんでした (${startPort}-${startPort + maxAttempts - 1})`));
+        return;
+      }
+
+      const testServer = http.createServer();
+
+      testServer.once('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          attempts++;
+          currentPort++;
+          tryPort();
+        } else {
+          reject(err);
+        }
+      });
+
+      testServer.once('listening', () => {
+        testServer.close(() => {
+          resolve(currentPort);
+        });
+      });
+
+      testServer.listen(currentPort);
+    };
+
+    tryPort();
+  });
+}
+
 // サーバー起動関数
-function startServer(config, startTime) {
-  // HTTPサーバーを作成
-  const PORT = 3000;
-  const server = http.createServer((req, res) => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+async function startServer(config, startTime) {
+  try {
+    // 利用可能なポートを見つける
+    const PORT = await findAvailablePort(3000);
 
-    if (req.url === '/api/elapsed') {
-      // API エンドポイント: 経過時間をJSON形式で返す
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ elapsed }));
-    } else {
-      // メインページ: HTMLを返す
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(generateHTML(elapsed));
-    }
-  });
+    // HTTPサーバーを作成
+    const server = http.createServer((req, res) => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
 
-  server.listen(PORT, () => {
-    log('INFO', `Webサーバーを起動しました: http://localhost:${PORT}`);
-    // サーバー起動後にブラウザを開く
-    openBrowser(`http://localhost:${PORT}`);
-  });
-
-  // ターミナルにも経過時間を表示し続ける
-  const timer = setInterval(() => {
-    const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    log('INFO', `経過時間: ${elapsed}秒`);
-  }, config.interval || 1000);
-
-  process.on('SIGINT', () => {
-    clearInterval(timer);
-    server.close(() => {
-      log('INFO', '\nサーバーを停止しました');
-      process.exit(0);
+      if (req.url === '/api/elapsed') {
+        // API エンドポイント: 経過時間をJSON形式で返す
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ elapsed }));
+      } else {
+        // メインページ: HTMLを返す
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(generateHTML(elapsed));
+      }
     });
-  });
+
+    // エラーハンドリング
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        log('ERROR', `ポート ${PORT} は既に使用されています`);
+      } else {
+        log('ERROR', `サーバーエラー: ${err.message}`);
+      }
+      process.exit(1);
+    });
+
+    server.listen(PORT, () => {
+      log('INFO', `Webサーバーを起動しました: http://localhost:${PORT}`);
+      if (PORT !== 3000) {
+        log('WARN', `ポート3000が使用中のため、ポート${PORT}を使用しています`);
+      }
+      // サーバー起動後にブラウザを開く
+      openBrowser(`http://localhost:${PORT}`);
+    });
+
+    // ターミナルにも経過時間を表示し続ける
+    const timer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      log('INFO', `経過時間: ${elapsed}秒`);
+    }, config.interval || 1000);
+
+    process.on('SIGINT', () => {
+      clearInterval(timer);
+      server.close(() => {
+        log('INFO', '\nサーバーを停止しました');
+        process.exit(0);
+      });
+    });
+  } catch (error) {
+    log('ERROR', `サーバーの起動に失敗しました: ${error.message}`);
+    process.exit(1);
+  }
 }
 
 // テストとして実行されているか確認
