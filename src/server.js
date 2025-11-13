@@ -48,8 +48,18 @@ async function startServer(config, startTime) {
         req.on('end', () => {
           try {
             const data = JSON.parse(body);
+            const previousTargets = config.targets || [];
             config.targets = data.targets || [];
             const success = saveConfig(config);
+
+            // 設定が更新されたことをログに出力
+            if (success) {
+              log('INFO', `監視対象を更新しました: ${config.targets.length}件`);
+              if (config.targets.length > 0) {
+                log('INFO', `監視対象リポジトリ: ${config.targets.join(', ')}`);
+              }
+            }
+
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success }));
           } catch (error) {
