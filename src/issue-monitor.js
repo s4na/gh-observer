@@ -35,9 +35,11 @@ async function fetchIssues(repo) {
   }
 
   try {
-    const { stdout } = await execAsync(
-      `gh issue list --repo ${repo} --json number,title,state,createdAt,updatedAt,author --limit 100`
-    );
+    const cmd = `gh issue list --repo ${repo} --json number,title,state,createdAt,updatedAt,author --limit 100`;
+    if (global.debugMode) {
+      log('DEBUG', `📋 実行: ${cmd}`);
+    }
+    const { stdout } = await execAsync(cmd);
     return JSON.parse(stdout);
   } catch (err) {
     log('WARN', `Issue取得失敗 (${repo}): ${err.message}`);
@@ -59,9 +61,11 @@ async function fetchIssueComments(repo, issueNumber) {
   }
 
   try {
-    const { stdout } = await execAsync(
-      `gh issue view ${issueNumber} --repo ${repo} --json comments`
-    );
+    const cmd = `gh issue view ${issueNumber} --repo ${repo} --json comments`;
+    if (global.debugMode) {
+      log('DEBUG', `📋 実行: ${cmd}`);
+    }
+    const { stdout } = await execAsync(cmd);
     const result = JSON.parse(stdout);
     return result.comments || [];
   } catch (err) {
