@@ -44,8 +44,9 @@ describe('Issue Monitor', () => {
     test('should detect new issues', async () => {
       const { exec } = require('child_process');
 
-      // 1回目: Issue#1のみ
+      // 1回目: Issue#1のみ、コメント取得も必要
       exec.mockImplementationOnce((cmd, callback) => {
+        // gh issue list コマンド
         callback(null, {
           stdout: JSON.stringify([
             {
@@ -57,6 +58,13 @@ describe('Issue Monitor', () => {
               updatedAt: '2025-01-01T00:00:00Z'
             }
           ])
+        });
+      });
+
+      // 初回のコメント取得
+      exec.mockImplementationOnce((cmd, callback) => {
+        callback(null, {
+          stdout: JSON.stringify({ comments: [] })
         });
       });
 
@@ -84,11 +92,23 @@ describe('Issue Monitor', () => {
         });
       });
 
+      // 新規Issue #2 のコメント取得
+      exec.mockImplementationOnce((cmd, callback) => {
+        callback(null, {
+          stdout: JSON.stringify({ comments: [] })
+        });
+      });
+
       // 初回実行（キャッシュ作成）
       await monitorRepositories(['owner/repo']);
 
-      // ログが出力されないことを確認（初回はキャッシュするだけ）
-      expect(log).not.toHaveBeenCalled();
+      // 初回は「監視開始」ログが出力されることを確認
+      expect(log).toHaveBeenCalledWith(
+        'INFO',
+        expect.stringContaining('監視開始')
+      );
+
+      jest.clearAllMocks();
 
       // 2回目実行（新規Issue検出）
       await monitorRepositories(['owner/repo']);
