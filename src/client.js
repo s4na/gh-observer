@@ -80,6 +80,66 @@ function loadRepositories() {
 // ページロード時にリポジトリ情報を取得
 loadRepositories();
 
+// 検索機能
+function setupSearch() {
+  const searchInput = document.getElementById('search-input');
+  const searchClearButton = document.getElementById('search-clear-button');
+  const searchResultsInfo = document.getElementById('search-results-info');
+
+  searchInput.addEventListener('input', function(e) {
+    const query = e.target.value.toLowerCase().trim();
+    const repoItems = document.querySelectorAll('.repo-item');
+    const orgSections = document.querySelectorAll('.org-section');
+
+    let visibleCount = 0;
+    let totalCount = repoItems.length;
+
+    if (query === '') {
+      // 検索をクリア
+      repoItems.forEach(item => item.classList.remove('hidden'));
+      orgSections.forEach(section => section.classList.remove('hidden'));
+      searchClearButton.style.display = 'none';
+      searchResultsInfo.textContent = '';
+    } else {
+      // 検索実行
+      repoItems.forEach(item => {
+        const repoName = item.textContent.toLowerCase();
+        if (repoName.includes(query)) {
+          item.classList.remove('hidden');
+          visibleCount++;
+        } else {
+          item.classList.add('hidden');
+        }
+      });
+
+      // 組織セクションの表示/非表示を判定
+      orgSections.forEach(section => {
+        const visibleRepos = section.querySelectorAll('.repo-item:not(.hidden)').length;
+        if (visibleRepos === 0) {
+          section.classList.add('hidden');
+        } else {
+          section.classList.remove('hidden');
+        }
+      });
+
+      searchClearButton.style.display = 'inline-block';
+      searchResultsInfo.textContent = '検索結果: ' + visibleCount + '/' + totalCount + 'リポジトリ';
+    }
+  });
+
+  searchClearButton.addEventListener('click', clearSearch);
+}
+
+function clearSearch() {
+  const searchInput = document.getElementById('search-input');
+  searchInput.value = '';
+  searchInput.dispatchEvent(new Event('input'));
+  searchInput.focus();
+}
+
+// 検索機能の初期化
+setupSearch();
+
 // 選択されたリポジトリを保存する関数
 function saveSelectedRepos() {
   const checkboxes = document.querySelectorAll('.repo-checkbox:checked');
